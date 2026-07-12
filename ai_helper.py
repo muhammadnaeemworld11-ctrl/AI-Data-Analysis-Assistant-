@@ -13,8 +13,8 @@ def get_client():
         return OpenAI(
             api_key=api_key,
             base_url="https://openrouter.ai/api/v1",
+            http_client=None  # <--- YEH LINE ADD KAREIN!
         )
-
 def ask_ai(question, dataset_summary):
     # Client ko yahan initialize karein, jab user sawal pooche
     client = get_client()
