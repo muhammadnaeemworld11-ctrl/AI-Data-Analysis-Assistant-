@@ -1,9 +1,8 @@
 import streamlit as st
 import pandas as pd
-import analysis
-import visualization
-import ai_helper
-from PIL import Image
+
+# LAZY IMPORTS: Modules ko yahan import nahi karein, functions ke andar karein ge
+# Is se Streamlit Cloud par "Segmentation fault" nahi aayega
 
 # ==========================
 # PAGE SETTINGS
@@ -12,12 +11,6 @@ st.set_page_config(page_title="AI Data Analysis Assistant", page_icon="🤖", la
 st.title("🤖 AI Data Analysis Assistant Pro")
 st.write("Upload CSV files, analyze data, create interactive charts and ask AI questions.")
 st.divider()
-
-# Image loading
-img = Image.open("Sylani.png")
-rotated_img = img.rotate(25, expand=True)
-st.image(rotated_img, width=200)
-
 
 # ==========================
 # SIDEBAR
@@ -31,42 +24,88 @@ uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 # ==========================
 if option == "Home":
     st.subheader("Welcome")
-    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ Interactive Data Filtering\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
+    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ AI Smart Natural Language Filtering\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
 
 # ==========================
 # LOAD & CLEAN DATA
 # ==========================
 if uploaded_file is not None:
+    # Jab file upload ho, tab modules import karein
+    import analysis
+    import visualization
+    import ai_helper
+
     df = analysis.load_data(uploaded_file)
     df = analysis.clean_data(df)
 
     # ==========================
-    # SIDEBAR FILTERS (Bonus Feature!)
+    # SIDEBAR AI SMART FILTER
     # ==========================
     st.sidebar.divider()
+    st.sidebar.subheader("🤖 AI Smart Filter")
     
-    
-    filtered_df = df.copy() # Start with unfiltered data
-    
-    # Dynamic Year Filter (if Released_Year exists)
-    if 'Released_Year' in filtered_df.columns:
-        # Convert to numeric just in case, drop NaNs for the slider
-        years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce').dropna()
-        if len(years) > 0:
-            min_yr, max_yr = int(years.min()), int(years.max())
-            yr_range = st.sidebar.slider("Filter by Release Year", min_yr, max_yr, (min_yr, max_yr))
-            filtered_df = filtered_df[(pd.to_numeric(filtered_df['Released_Year'], errors='coerce') >= yr_range[0]) & 
-                                      (pd.to_numeric(filtered_df['Released_Year'], errors='coerce') <= yr_range[1])]
+    if "filter_query" not in st.session_state:
+        st.session_state.filter_query = None
 
-    # Generate summary for AI using the FILTERED data
+    ai_filter_input = st.sidebar.text_input(
+        "Filter data in plain English:", 
+        placeholder="e.g., Movies after 2000 with rating > 8.5"
+    )
+    
+    if st.sidebar.button("Apply AI Filter"):
+        if ai_filter_input.strip():
+            with st.sidebar.spinner("AI is writing filter code..."):
+                query_string = ai_helper.get_ai_filter(ai_filter_input, list(df.columns))
+                
+            if query_string:
+                st.session_state.filter_query = query_string
+                st.sidebar.success(f"AI Generated Code: `{query_string}`")
+            else:
+                st.sidebar.warning("AI couldn't understand that filter. Showing all data.")
+                st.session_state.filter_query = None
+        else:
+            st.sidebar.info("Type a filter request above.")
+
+    if st.sidebar.button("Reset Filter (Show All)"):
+        st.session_state.filter_query = None
+        st.sidebar.info("Filter cleared.")
+
+    filtered_df = df.copy()
+    if st.session_state.filter_query:
+        try:
+            filtered_df = df.query(st.session_state.filter_query)
+        except Exception as e:
+            st.sidebar.error(f"AI filter failed: {e}. Showing all data.")
+            filtered_df = df.copy()
+
     summary = analysis.get_summary(filtered_df, uploaded_file.name)
 
     # ==========================
-    # HOME - AUTO INSIGHTS (Wow Factor!)
+    # SMART DOWNLOAD BUTTON
+    # ==========================
+    if df.shape[0] == filtered_df.shape[0]:
+        st.sidebar.download_button(
+            label="📥 Download Full CSV",
+            data=filtered_df.to_csv(index=False),
+            file_name="full_dataset.csv",
+            mime="text/csv"
+        )
+    else:
+        st.sidebar.download_button(
+            label=f"📥 Download AI-Filtered CSV ({filtered_df.shape[0]} rows)",
+            data=filtered_df.to_csv(index=False),
+            file_name="ai_filtered_dataset.csv",
+            mime="text/csv"
+        )
+
+    # ==========================
+    # HOME - AUTO INSIGHTS
     # ==========================
     if option == "Home":
         st.divider()
-        if st.button("✨ Auto-Generate Key Insights from Data"):
+        if filtered_df.empty:
+            st.warning("The current filter returned 0 rows. Cannot generate insights.")
+        elif st.button("✨ Auto-Generate Key Insights from Data"):
             with st.spinner("AI is scanning your dataset for hidden trends..."):
                 insight_question = "Analyze this dataset and give me exactly 3 key business insights or trends that a data analyst would find interesting. Keep each insight to 1-2 sentences."
                 insights = ai_helper.ask_ai(insight_question, summary)
@@ -74,7 +113,12 @@ if uploaded_file is not None:
             st.subheader("🔑 Key Insights")
             st.markdown(insights)
             
-            
+            st.divider()
+            if st.button("📄 Export Insights to PDF"):
+                pdf_file = analysis.export_to_pdf(insights)
+                with open(pdf_file, "rb") as f:
+                    st.download_button(label="Download PDF Report", data=f, file_name="AI_Analysis_Report.pdf", mime="application/pdf")
+
     # ==========================
     # SUMMARY
     # ==========================
@@ -111,7 +155,7 @@ if uploaded_file is not None:
             st.write(analysis.get_category_counts(filtered_df, col))
 
     # ==========================
-    # VISUALIZATION (INTERACTIVE PLOTLY!)
+    # VISUALIZATION
     # ==========================
     if option == "Visualization":
         st.header("📊 Interactive Visualization")
@@ -145,11 +189,11 @@ if uploaded_file is not None:
                 y = st.selectbox("Y Axis", cols, index=1)
                 fig = visualization.plot_scatter(filtered_df, x, y)
 
-        # Display the Plotly chart
         if fig is not None:
             st.plotly_chart(fig, use_container_width=True)
+        elif filtered_df.empty:
+            st.warning("No data available to plot based on the current filter.")
 
-        # AI EXPLANATION
         st.divider()
         if st.button("🤖 Explain this Chart with AI"):
             if fig is not None:
@@ -176,3 +220,5 @@ if uploaded_file is not None:
                 st.success("AI Response")
                 st.write(answer)
 
+else:
+    st.info("Upload a CSV file from sidebar.")
