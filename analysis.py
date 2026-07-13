@@ -3,10 +3,6 @@ from fpdf import FPDF
 import tempfile
 
 def load_data(file):
-    """
-    Safely reads CSV datasets by checking standard encoding parameters
-    to prevent UnicodeDecodeErrors with windows-based or localized files.
-    """
     try:
         return pd.read_csv(file)
     except UnicodeDecodeError:
@@ -23,8 +19,8 @@ def clean_data(df):
     return df
 
 def get_summary(df, filename):
-    total_rows = df.shape[0]
-    total_cols = df.shape[1]
+    total_rows = df.shape
+    total_cols = df.shape
     dtypes_dict = {col: str(dtype) for col, dtype in df.dtypes.items()}
     missing_values = df.isnull().sum().to_dict()
     
