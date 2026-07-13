@@ -3,10 +3,27 @@ from fpdf import FPDF
 import tempfile
 
 def load_data(file):
-    return pd.read_csv(file)
+    """
+    Safely reads CSV datasets by checking standard encoding parameters
+    to prevent UnicodeDecodeErrors with windows-based or localized files.
+    """
+    try:
+        # Step 1: Try reading with standard UTF-8 encoding
+        return pd.read_csv(file)
+    except UnicodeDecodeError:
+        try:
+            # Step 2: Seek back to the beginning of the file stream before trying again
+            file.seek(0)
+            # Try reading with ISO-8859-1 (Latin-1) which is common for retail data
+            return pd.read_csv(file, encoding='ISO-8859-1')
+        except UnicodeDecodeError:
+            # Step 3: Seek back to the beginning of the file stream one last time
+            file.seek(0)
+            # Try reading with Windows-1252 encoding (standard Excel export fallback)
+            return pd.read_csv(file, encoding='cp1252')
 
 def clean_data(df):
-    # Strip whitespaces from string columns to prevent errors
+    # Strip whitespaces from string columns to prevent trailing lookup errors
     for col in df.select_dtypes(include='object').columns:
         df[col] = df[col].astype(str).str.strip()
     return df
