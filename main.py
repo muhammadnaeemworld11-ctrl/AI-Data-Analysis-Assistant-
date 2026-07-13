@@ -9,6 +9,7 @@ import visualization
 import ai_helper
 import io
 from gtts import gTTS
+import speech_recognition as sr
 
 # ==========================
 # PAGE SETTINGS
@@ -37,17 +38,15 @@ uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 if option == "Home":
     st.divider()
     st.subheader("Welcome to AI Data Analysis Assistant Pro! 🎉")
-    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ AI Data Assistant\n\n✅ Voice AI Summary\n\n✅ Data Summary\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations")
+    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ AI Data Assistant\n\n✅ Voice AI Summary\n\n✅ Voice Question Input\n\n✅ Data Summary\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations")
 
 # ==========================
 # MAIN APP LOGIC (IF FILE UPLOADED)
 # ==========================
 if uploaded_file is not None: 
-    # .copy() prevents Streamlit cache modification errors
     df = analysis.load_data(uploaded_file).copy() 
     df = analysis.clean_data(df) 
     
-    # Unfiltered data summary
     summary = analysis.get_summary(df, uploaded_file.name) 
     filtered_df = df.copy() 
     
@@ -61,7 +60,6 @@ if uploaded_file is not None:
             year_mask = (numeric_years >= yr_range[0]) & (numeric_years <= yr_range[1])
             filtered_df = filtered_df[year_mask] 
             
-    # Filtered data summary
     filtered_summary = analysis.get_summary(filtered_df, uploaded_file.name)
 
     # ==========================
@@ -87,34 +85,59 @@ if uploaded_file is not None:
         
         if st.button("🔊 Generate & Play Voice Summary"):
             with st.spinner("AI is analyzing the data and generating voice..."):
-                # 1. Ask OpenRouter to create a VERY SHORT summary (shorter = better for audio)
                 voice_question = "Provide a very brief, 3-sentence spoken summary of this dataset's key statistics and purpose. Keep it conversational."
                 text_answer = ai_helper.ask_ai(voice_question, summary)
                 
                 st.subheader("AI Text Summary:")
                 st.markdown(text_answer)
                 
-                # 2. Convert the OpenRouter text to Speech using gTTS
                 try:
                     st.info("Generating audio file...")
-                    # Create audio bytes in memory
                     audio_bytes = io.BytesIO()
                     tts = gTTS(text=text_answer, lang='en', slow=False)
                     tts.write_to_fp(audio_bytes)
                     audio_bytes.seek(0)
                     
-                    # 3. Play the audio in Streamlit
                     st.success("Audio ready! Play it below:")
                     st.audio(audio_bytes, format='audio/mp3')
                 except Exception as e:
                     st.error(f"Voice Error: {e}. The AI response might have been too long or contained characters that can't be read.")
 
     # ==========================
-    # ASK AI
+    # ASK AI (WITH VOICE INPUT)
     # ==========================
     elif option == "Ask AI":
         st.header("🤖 Ask AI")
-        question = st.text_input("✨Ask about your dataset")
+        st.write("Type your question below, or click the microphone icon to speak it.")
+        
+        # Initialize default question text
+        question_text = ""
+
+        # Microphone Input Button
+        audio_bytes = st.audio_input("🎤 Click to record your question")
+        
+        if audio_bytes is not None:
+            st.info("Transcribing your voice...")
+            try:
+                # Read the recorded audio bytes
+                audio_data = audio_bytes.read()
+                
+                # Use SpeechRecognition to transcribe
+                recognizer = sr.Recognizer()
+                audio_file = sr.AudioFile(io.BytesIO(audio_data))
+                
+                with audio_file as source:
+                    audio_record = recognizer.record(source)
+                    
+                # Convert speech to text using Google's free API
+                question_text = recognizer.recognize_google(audio_record)
+                st.success(f"Heard: {question_text}")
+            except Exception as e:
+                st.error(f"Could not understand audio: {e}")
+
+        # Text Input Box (auto-fills with your voice transcription if available)
+        question = st.text_input("✨Ask about your dataset", value=question_text)
+        
         if st.button("Get Answer"):
             if question.strip() == "":
                 st.warning("Enter a question")
@@ -168,46 +191,4 @@ if uploaded_file is not None:
                     "count": st.column_config.Column(alignment="center"),
                     col: st.column_config.Column(alignment="center")
                 },
-                use_container_width=True  
-            )
-
-    # ==========================
-    # VISUALIZATION 
-    # ==========================
-    elif option == "Visualization":
-        st.header("📊 Interactive Visualization")
-        
-        chart_type = st.selectbox("Choose Chart", ["Bar Chart", "Histogram", "Pie Chart", "Scatter Plot"])
-        fig = None
-
-        if chart_type == "Bar Chart":
-            cols = filtered_df.select_dtypes(include="object").columns
-            if len(cols):
-                col = st.selectbox("Category", cols)
-                fig = visualization.plot_bar(filtered_df, col)
-
-        elif chart_type == "Histogram":
-            cols = filtered_df.select_dtypes(include="number").columns
-            if len(cols):
-                col = st.selectbox("Numeric Column", cols)
-                fig = visualization.plot_histogram(filtered_df, col)
-
-        elif chart_type == "Pie Chart":
-            cols = filtered_df.select_dtypes(include="object").columns
-            if len(cols):
-                col = st.selectbox("Category", cols)
-                fig = visualization.plot_pie(filtered_df, col)
-
-        elif chart_type == "Scatter Plot":
-            cols = filtered_df.select_dtypes(include="number").columns
-            if len(cols) >= 2:
-                x = st.selectbox("X Axis", cols)
-                y = st.selectbox("Y Axis", cols, index=1)
-                fig = visualization.plot_scatter(filtered_df, x, y)
-
-        if fig is not None:
-            st.plotly_chart(fig, use_container_width=True)
-
-else:
-    if option != "Home":
-        st.warning("Please upload a CSV file from the sidebar to use this feature.")
+                use_container_width=True
