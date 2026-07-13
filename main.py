@@ -1,12 +1,12 @@
 import streamlit as st
+
+# PAGE SETTINGS (Must be the very first Streamlit command)
+st.set_page_config(page_title="AI Data Analysis Assistant", page_icon="🤖", layout="wide")
+
 import pandas as pd
 import analysis
 import visualization
 import ai_helper
-# ==========================
-# PAGE SETTING
-# ==========================
-st.set_page_config(page_title="AI Data Analysis Assistant", page_icon="🤖", layout="wide")
 
 st.title("🤖 AI Data Analysis Assistant Pro")
 st.write("Upload CSV files, analyze data, create interactive charts and ask AI questions.")
@@ -24,7 +24,7 @@ uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 # ==========================
 if option == "Home" and uploaded_file is None:
     st.subheader("Welcome")
-    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant")
+    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
 
 # ==========================
 # LOAD & CLEAN DATA
@@ -33,10 +33,7 @@ if uploaded_file is not None:
     df = analysis.load_data(uploaded_file)
     df = analysis.clean_data(df)
 
-    # Use a direct copy since the sidebar filter is removed
     filtered_df = df.copy()
-
-    # Generate summary text block variable for AI tools
     summary = analysis.get_summary(filtered_df, uploaded_file.name)
 
     # ==========================
@@ -54,8 +51,13 @@ if uploaded_file is not None:
                 insights = ai_helper.ask_ai(insight_question, summary)
             
             st.subheader("🔑 Key Insights")
-            st.success(insights)
+            st.markdown(insights)
             
+            st.divider()
+            if st.button("📄 Export Insights to PDF"):
+                pdf_file = analysis.export_to_pdf(insights)
+                with open(pdf_file, "rb") as f:
+                    st.download_button(label="Download PDF Report", data=f, file_name="AI_Analysis_Report.pdf", mime="application/pdf")
 
     # ==========================
     # DATASET SUMMARY
