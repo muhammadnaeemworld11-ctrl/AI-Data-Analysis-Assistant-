@@ -17,9 +17,9 @@ option = st.sidebar.radio("Select", ["Home", "Dataset Summary", "Statistics", "V
 uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 
 # ==========================
-# HOME
+# HOME (NO FILE UPLOADED)
 # ==========================
-if option == "Home":
+if option == "Home" and uploaded_file is None:
     st.subheader("Welcome")
     st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ AI Smart Natural Language Filtering\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
 
@@ -77,11 +77,12 @@ if uploaded_file is not None:
 
     summary = analysis.get_summary(filtered_df, uploaded_file.name)
 
-
     # ==========================
     # HOME - AUTO INSIGHTS
     # ==========================
     if option == "Home":
+        st.subheader("Welcome")
+        st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ AI Smart Natural Language Filtering\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
         st.divider()
         if filtered_df.empty:
             st.warning("The current filter returned 0 rows. Cannot generate insights.")
@@ -100,7 +101,7 @@ if uploaded_file is not None:
                     st.download_button(label="Download PDF Report", data=f, file_name="AI_Analysis_Report.pdf", mime="application/pdf")
 
     # ==========================
-    # SUMMARY (FIXED ERRORS HERE)
+    # DATASET SUMMARY
     # ==========================
     if option == "Dataset Summary":
         st.header("📊 Dataset Summary")
@@ -114,9 +115,10 @@ if uploaded_file is not None:
         st.subheader("Column Names")
         st.write(list(filtered_df.columns))
         
-        # FIX: Data Types aur Missing Values ko DataFrame format mein convert kiya hai
+        # SOLUTION: Explicitly cast types to string format (.astype(str)) to prevent Arrow crash
         st.subheader("Data Types")
-        st.dataframe(pd.DataFrame(filtered_df.dtypes, columns=['Data Type']))
+        dtypes_df = pd.DataFrame(filtered_df.dtypes, columns=['Data Type']).astype(str)
+        st.dataframe(dtypes_df)
         
         st.subheader("Missing Values")
         st.dataframe(pd.DataFrame(filtered_df.isnull().sum(), columns=['Missing Values']))
@@ -137,28 +139,56 @@ if uploaded_file is not None:
             col = st.selectbox("Select Category", categorical.columns)
             st.write(analysis.get_category_counts(filtered_df, col))
 
-       # ==========================
-    # SUMMARY (FIXED ERRORS HERE)
     # ==========================
-    if option == "Dataset Summary":
-        st.header("📊 Dataset Summary")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Rows", filtered_df.shape[0])
-        c2.metric("Columns", filtered_df.shape[1])
-        c3.metric("Missing Values", int(filtered_df.isnull().sum().sum()))
+    # VISUALIZATION
+    # ==========================
+    if option == "Visualization":
+        st.header("📊 Interactive Visualization")
+        st.info("💡 Hover over the charts for details! Click the 📷 camera icon on the chart to download as PNG.")
+        
+        chart_type = st.selectbox("Choose Chart", ["Bar Chart", "Histogram", "Pie Chart", "Scatter Plot"])
+        fig = None
+
+        if chart_type == "Bar Chart":
+            cols = filtered_df.select_dtypes(include="object").columns
+            if len(cols):
+                col = st.selectbox("Category", cols)
+                fig = visualization.plot_bar(filtered_df, col)
+
+        elif chart_type == "Histogram":
+            cols = filtered_df.select_dtypes(include="number").columns
+            if len(cols):
+                col = st.selectbox("Numeric Column", cols)
+                fig = visualization.plot_histogram(filtered_df, col)
+
+        elif chart_type == "Pie Chart":
+            cols = filtered_df.select_dtypes(include="object").columns
+            if len(cols):
+                col = st.selectbox("Category", cols)
+                fig = visualization.plot_pie(filtered_df, col)
+
+        elif chart_type == "Scatter Plot":
+            cols = filtered_df.select_dtypes(include="number").columns
+            if len(cols) >= 2:
+                x = st.selectbox("X Axis", cols)
+                y = st.selectbox("Y Axis", cols, index=1)
+                fig = visualization.plot_scatter(filtered_df, x, y)
+
+        if fig is not None:
+            st.plotly_chart(fig, use_container_width=True)
+        elif filtered_df.empty:
+            st.warning("No data available to plot based on the current filter.")
+
         st.divider()
-        st.subheader("Preview")
-        st.dataframe(filtered_df.head(10), use_container_width=True)
-        st.subheader("Column Names")
-        st.write(list(filtered_df.columns))
-        
-        # SOLUTION: Explicitly cast types to string format (.astype(str))
-        st.subheader("Data Types")
-        dtypes_df = pd.DataFrame(filtered_df.dtypes, columns=['Data Type']).astype(str)
-        st.dataframe(dtypes_df)
-        
-        st.subheader("Missing Values")
-        st.dataframe(pd.DataFrame(filtered_df.isnull().sum(), columns=['Missing Values']))
+        if st.button("🤖 Explain this Chart with AI"):
+            if fig is not None:
+                with st.spinner("AI is analyzing the chart..."):
+                    chart_question = f"Briefly explain the {chart_type} for the column(s) selected. Provide a simple insight."
+                    explanation = ai_helper.ask_ai(chart_question, summary)
+                st.success("AI Explanation:")
+                st.write(explanation)
+            else:
+                st.warning("Please generate a chart first.")
 
     # ==========================
     # ASK AI
