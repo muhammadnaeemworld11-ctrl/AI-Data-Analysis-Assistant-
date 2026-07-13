@@ -43,8 +43,8 @@ if option == "Home":
     # AI GENERATED IMAGE PERMANENTLY ON THE INTERFACE
     st.divider()
     st.subheader("Empowering Through Technology 🦯")
-    ai_image_url = "https://image.pollinations.ai/prompt/A%20high-quality%20digital%20illustration%20of%20blind%20people%20using%20a%20computer%20with%20braille%20and%20voice%20assistants%20in%20a%20modern%20office?width=800&height=400&nologo=true"
-    st.image(ai_image_url, caption="AI Generated Illustration: Blind people using AI technology", use_container_width=True)
+    
+    st.image(Blind_people.jpg, caption="AI For Blind people using AI technology", use_container_width=True)
 
 # ==========================
 # MAIN APP LOGIC (IF FILE UPLOADED)
