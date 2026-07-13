@@ -1,61 +1,57 @@
 import pandas as pd
-import numpy as np
-import streamlit as st
 from fpdf import FPDF
-import re
+import tempfile
 
-@st.cache_data
-def load_data(uploaded_file):
-    """Reads the CSV file with fallback encodings. Cached for speed."""
-    try:
-        df = pd.read_csv(uploaded_file, encoding="utf-8")
-    except UnicodeDecodeError:
-        try:
-            df = pd.read_csv(uploaded_file, encoding="cp1252")
-        except:
-            df = pd.read_csv(uploaded_file, encoding="latin1")
-    return df
+def load_data(file):
+    return pd.read_csv(file)
 
 def clean_data(df):
-    """Cleans specific columns like Gross."""
-    if 'Gross' in df.columns:
-        df['Gross'] = df['Gross'].replace(',', '', regex=True)
-        df['Gross'] = pd.to_numeric(df['Gross'], errors='coerce')
+    # Strip whitespaces from string columns to prevent errors
+    for col in df.select_dtypes(include='object').columns:
+        df[col] = df[col].astype(str).str.strip()
     return df
 
 def get_summary(df, filename):
-    """Generates a text summary of the dataset for the AI."""
-    return f"""
-File: {filename}
-Rows: {df.shape[0]}
-Columns: {df.shape[1]}
-Column Names: {list(df.columns)}
-Data Types: {df.dtypes.to_string()}
-First Rows: {df.head(5).to_string()}
-Statistics: {df.describe().head(10).to_string()}
-"""
+    """
+    Generates a textual breakdown of the dataset. 
+    All data type references are safely cast to strings to protect PyArrow.
+    """
+    total_rows = df.shape[0]
+    total_cols = df.shape[1]
+    
+    # Secure mapping of column data types
+    dtypes_dict = {col: str(dtype) for col, dtype in df.dtypes.items()}
+    missing_values = df.isnull().sum().to_dict()
+    
+    summary_text = f"Dataset Name: {filename}\n"
+    summary_text += f"Total Rows: {total_rows}, Total Columns: {total_cols}\n\n"
+    summary_text += "Columns, Data Types, and Missing Values Breakdown:\n"
+    
+    for col in df.columns:
+        summary_text += f"- Column: '{col}' | Type: {dtypes_dict[col]} | Missing: {missing_values[col]}\n"
+        
+    return summary_text
 
 def get_numeric_stats(df):
-    """Returns statistics for numeric columns."""
-    numeric = df.select_dtypes(include=np.number)
-    if len(numeric.columns):
-        return numeric.describe()
-    return None
+    numeric_df = df.select_dtypes(include='number')
+    if numeric_df.empty:
+        return None
+    return numeric_df.describe().T
 
-def get_category_counts(df, col):
-    """Returns value counts for a categorical column."""
-    return df[col].value_counts()
+def get_category_counts(df, column):
+    return df[column].value_counts().head(10)
 
-def export_to_pdf(text_content, filename="AI_Analysis_Report.pdf"):
-    """Exports AI insights to a downloadable PDF file."""
-    # FPDF struggles with emojis, so we remove them
-    clean_text = re.sub(r'[^\x00-\x7F]+', ' ', text_content)
-    
+def export_to_pdf(text_content):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, txt="AI Data Analysis Report", ln=True, align='C')
-    pdf.ln(10)
-    pdf.multi_cell(0, 10, txt=clean_text)
-    pdf.output(filename)
-    return filename
+    
+    # Process long string lines safely for FPDF output
+    for line in text_content.split('\n'):
+        # Clean potential non-latin characters that break standard FPDF layout engines
+        clean_line = line.encode('latin-1', 'replace').decode('latin-1')
+        pdf.cell(200, 10, txt=clean_line, ln=True)
+        
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        pdf.output(tmp.name)
+        return tmp.name
