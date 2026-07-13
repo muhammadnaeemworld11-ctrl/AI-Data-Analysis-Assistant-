@@ -7,6 +7,7 @@ import ai_helper
 # PAGE SETTING
 # ==========================
 st.set_page_config(page_title="AI Data Analysis Assistant", page_icon="🤖", layout="wide")
+
 st.title("🤖 AI Data Analysis Assistant Pro")
 st.write("Upload CSV files, analyze data, create interactive charts and ask AI questions.")
 st.divider()
