@@ -24,7 +24,7 @@ uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 # ==========================
 if option == "Home" and uploaded_file is None:
     st.subheader("Welcome")
-    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ AI Smart Natural Language Filtering\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
+    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
 
 # ==========================
 # LOAD & CLEAN DATA
@@ -33,16 +33,21 @@ if uploaded_file is not None:
     df = analysis.load_data(uploaded_file)
     df = analysis.clean_data(df)
 
-    
+    # Use a direct copy since the sidebar filter is removed
+    filtered_df = df.copy()
+
+    # Generate summary text block variable for AI tools
+    summary = analysis.get_summary(filtered_df, uploaded_file.name)
+
     # ==========================
     # HOME - AUTO INSIGHTS
     # ==========================
     if option == "Home":
         st.subheader("Welcome")
-        st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ AI Smart Natural Language Filtering\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
+        st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
         st.divider()
         if filtered_df.empty:
-            st.warning("The current filter returned 0 rows. Cannot generate insights.")
+            st.warning("The dataset is empty. Cannot generate insights.")
         elif st.button("✨ Auto-Generate Key Insights from Data"):
             with st.spinner("AI is scanning your dataset for hidden trends..."):
                 insight_question = "Analyze this dataset and give me exactly 3 key business insights or trends that a data analyst would find interesting. Keep each insight to 1-2 sentences."
@@ -133,7 +138,7 @@ if uploaded_file is not None:
         if fig is not None:
             st.plotly_chart(fig, use_container_width=True)
         elif filtered_df.empty:
-            st.warning("No data available to plot based on the current filter.")
+            st.warning("No data available to plot.")
 
         st.divider()
         if st.button("🤖 Explain this Chart with AI"):
