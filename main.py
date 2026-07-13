@@ -23,7 +23,7 @@ uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 # ==========================
 if option == "Home" and uploaded_file is None:
     st.subheader("Welcome")
-    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
+    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant")
 
 # ==========================
 # LOAD & CLEAN DATA
@@ -53,13 +53,8 @@ if uploaded_file is not None:
                 insights = ai_helper.ask_ai(insight_question, summary)
             
             st.subheader("🔑 Key Insights")
-            st.markdown(insights)
+            st.success(insights)
             
-            st.divider()
-            if st.button("📄 Export Insights to PDF"):
-                pdf_file = analysis.export_to_pdf(insights)
-                with open(pdf_file, "rb") as f:
-                    st.download_button(label="Download PDF Report", data=f, file_name="AI_Analysis_Report.pdf", mime="application/pdf")
 
     # ==========================
     # DATASET SUMMARY
