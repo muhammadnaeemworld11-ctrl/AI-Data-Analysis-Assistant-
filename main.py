@@ -29,7 +29,7 @@ except FileNotFoundError:
 # SIDEBAR
 # ==========================
 st.sidebar.title("Navigation")
-option = st.sidebar.radio("Select One", ["Home", "Voice AI Summary", "Ask AI", "AUTO GENERATE KEY INSIGHTS", "Dataset Summary", "Statistics", "Visualization"])
+option = st.sidebar.radio("Select One", ["Home", "AUTO GENERATE KEY INSIGHTS", "Voice AI Summary", "Ask AI", "Dataset Summary", "Statistics", "Visualization"])
 uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"]) 
 
 # ==========================
@@ -38,8 +38,14 @@ uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 if option == "Home":
     st.divider()
     st.subheader("Welcome to AI Data Analysis Assistant Pro! 🎉")
-    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ AI Data Assistant\n\n✅ Voice AI Summary\n\n✅ Voice Question Input\n\n✅ Auto-Generated AI Insights\n\n✅ Data Summary\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations")
+    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ AI Data Assistant\n\n✅ Voice AI Summary\n\n✅ Voice Question Input\n\n✅ Data Summary\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations")
     
+    # AI GENERATED IMAGE PERMANENTLY ON THE INTERFACE
+    st.divider()
+    st.subheader("Empowering Through Technology 🦯")
+    ai_image_url = "https://image.pollinations.ai/prompt/A%20high-quality%20digital%20illustration%20of%20blind%20people%20using%20a%20computer%20with%20braille%20and%20voice%20assistants%20in%20a%20modern%20office?width=800&height=400&nologo=true"
+    st.image(ai_image_url, caption="AI Generated Illustration: Blind people using AI technology", use_container_width=True)
+
 # ==========================
 # MAIN APP LOGIC (IF FILE UPLOADED)
 # ==========================
@@ -104,30 +110,35 @@ if uploaded_file is not None:
                     st.error(f"Voice Error: {e}. The AI response might have been too long or contained characters that can't be read.")
 
     # ==========================
-    # ASK AI (WITH VOICE INPUT)
+    # ASK AI (WITH SAFE VOICE INPUT)
     # ==========================
     elif option == "Ask AI":
         st.header("🤖 Ask AI")
         st.write("Type your question below, or click the microphone icon to speak it.")
         
         question_text = ""
-        audio_bytes = st.audio_input("🎤 Click to record your question")
         
-        if audio_bytes is not None:
-            st.info("Transcribing your voice...")
-            try:
-                audio_data = audio_bytes.read()
-                recognizer = sr.Recognizer()
-                audio_file = sr.AudioFile(io.BytesIO(audio_data))
-                
-                with audio_file as source:
-                    audio_record = recognizer.record(source)
+        # Wrap st.audio_input in try-except to prevent app crash on Streamlit Cloud
+        try:
+            audio_bytes = st.audio_input("🎤 Click to record your question")
+            if audio_bytes is not None:
+                st.info("Transcribing your voice...")
+                try:
+                    audio_data = audio_bytes.read()
+                    recognizer = sr.Recognizer()
+                    audio_file = sr.AudioFile(io.BytesIO(audio_data))
                     
-                question_text = recognizer.recognize_google(audio_record)
-                st.success(f"Heard: {question_text}")
-            except Exception as e:
-                st.error(f"Could not understand audio: {e}")
+                    with audio_file as source:
+                        audio_record = recognizer.record(source)
+                        
+                    question_text = recognizer.recognize_google(audio_record)
+                    st.success(f"Heard: {question_text}")
+                except Exception as e:
+                    st.error(f"Could not understand audio: {e}")
+        except AttributeError:
+            st.warning("Microphone input is not supported in this browser/environment. Please type your question below.")
 
+        # Text Input Box
         question = st.text_input("✨Ask about your dataset", value=question_text)
         
         if st.button("Get Answer"):
