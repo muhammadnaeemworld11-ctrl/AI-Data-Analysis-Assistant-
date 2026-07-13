@@ -33,48 +33,7 @@ if uploaded_file is not None:
     df = analysis.load_data(uploaded_file)
     df = analysis.clean_data(df)
 
-    # ==========================
-    # SIDEBAR AI SMART FILTER
-    # ==========================
-    st.sidebar.divider()
-    st.sidebar.subheader("🤖 AI Smart Filter")
     
-    if "filter_query" not in st.session_state:
-        st.session_state.filter_query = None
-
-    ai_filter_input = st.sidebar.text_input(
-        "Filter data in plain English:", 
-        placeholder="e.g., Movies after 2000 with rating > 8.5"
-    )
-    
-    if st.sidebar.button("Apply AI Filter"):
-        if ai_filter_input.strip():
-            with st.sidebar.spinner("AI is writing filter code..."):
-                query_string = ai_helper.get_ai_filter(ai_filter_input, list(df.columns))
-                
-            if query_string:
-                st.session_state.filter_query = query_string
-                st.sidebar.success(f"AI Generated Code: `{query_string}`")
-            else:
-                st.sidebar.warning("AI couldn't understand that filter. Showing all data.")
-                st.session_state.filter_query = None
-        else:
-            st.sidebar.info("Type a filter request above.")
-
-    if st.sidebar.button("Reset Filter (Show All)"):
-        st.session_state.filter_query = None
-        st.sidebar.info("Filter cleared.")
-
-    filtered_df = df.copy()
-    if st.session_state.filter_query:
-        try:
-            filtered_df = df.query(st.session_state.filter_query)
-        except Exception as e:
-            st.sidebar.error(f"AI filter failed: {e}. Showing all data.")
-            filtered_df = df.copy()
-
-    summary = analysis.get_summary(filtered_df, uploaded_file.name)
-
     # ==========================
     # HOME - AUTO INSIGHTS
     # ==========================
