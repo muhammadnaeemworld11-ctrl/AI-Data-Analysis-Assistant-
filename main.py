@@ -41,7 +41,8 @@ if option == "Home":
 # MAIN APP LOGIC (IF FILE UPLOADED)
 # ==========================
 if uploaded_file is not None: 
-    df = analysis.load_data(uploaded_file) 
+    # FIX: Added .copy() to prevent Streamlit cache modification errors
+    df = analysis.load_data(uploaded_file).copy() 
     df = analysis.clean_data(df) 
     
     # Unfiltered data summary
