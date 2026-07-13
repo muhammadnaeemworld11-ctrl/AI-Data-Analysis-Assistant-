@@ -1,15 +1,10 @@
 import os
-import streamlit as st
+from dotenv import load_dotenv
 from openai import OpenAI
 
-try:
-    api_key = st.secrets["OPENROUTER_API_KEY"]
-except:
+load_dotenv()
 
-    from dotenv import load_dotenv
-    load_dotenv()
-    api_key = os.getenv("OPENROUTER_API_KEY")
-
+api_key = os.getenv("OPENROUTER_API_KEY")
 
 if not api_key:
     client = None
@@ -17,20 +12,16 @@ else:
     client = OpenAI(
         api_key=api_key,
         base_url="https://openrouter.ai/api/v1",
-        default_headers={
-            "HTTP-Referer": "https://your-streamlit-app-url.com", 
-            "X-Title": "AI Data Analysis Assistant"
-        }
     )
 
 def ask_ai(question, dataset_summary):
     if client is None:
-        return "API Key missing. Add OPENROUTER_API_KEY to Streamlit Cloud Secrets (or local .env file)."
+        return "API Key missing. Add OPENROUTER_API_KEY in .env"
         
     try:
         response = client.chat.completions.create(
-            model="meta-llama/llama-3.1-8b-instruct", 
-            max_tokens=500, 
+            model="meta-llama/llama-3.1-8b-instruct", # Using the affordable paid slug
+            max_tokens=500, # Limits tokens to save credits
             messages=[
                 {
                     "role": "system",
