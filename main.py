@@ -7,6 +7,8 @@ from PIL import Image
 import analysis
 import visualization
 import ai_helper
+import io
+from gtts import gTTS
 
 # ==========================
 # PAGE SETTINGS
@@ -26,7 +28,8 @@ except FileNotFoundError:
 # SIDEBAR
 # ==========================
 st.sidebar.title("Navigation")
-option = st.sidebar.radio("Select One", ["Home", "AUTO GENERATE KEY INSIGHTS", "Ask AI", "Dataset Summary", "Statistics", "Visualization"])
+# Added "Voice AI Summary" to the menu
+option = st.sidebar.radio("Select One", ["Home", "AUTO GENERATE KEY INSIGHTS", "Voice AI Summary", "Ask AI", "Dataset Summary", "Statistics", "Visualization"])
 uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"]) 
 
 # ==========================
@@ -35,17 +38,14 @@ uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 if option == "Home":
     st.divider()
     st.subheader("Welcome to AI Data Analysis Assistant Pro! 🎉")
-    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ AI Data Assistant\n\n✅ Data Summary\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations")
+    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ AI Data Assistant\n\n✅ Voice AI Summary For Specially Blind People\n\n✅ Data Summary\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations")
 
 # ==========================
 # MAIN APP LOGIC (IF FILE UPLOADED)
 # ==========================
 if uploaded_file is not None: 
-    # FIX: Added .copy() to prevent Streamlit cache modification errors
     df = analysis.load_data(uploaded_file).copy() 
     df = analysis.clean_data(df) 
-    
-    # Unfiltered data summary
     summary = analysis.get_summary(df, uploaded_file.name) 
     filtered_df = df.copy() 
     
@@ -58,9 +58,40 @@ if uploaded_file is not None:
             numeric_years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce')
             year_mask = (numeric_years >= yr_range[0]) & (numeric_years <= yr_range[1])
             filtered_df = filtered_df[year_mask] 
-            
-    # Filtered data summary
     filtered_summary = analysis.get_summary(filtered_df, uploaded_file.name)
+
+
+    # ==========================
+    # VOICE AI SUMMARY (NEW)
+    # ==========================
+    elif option == "Voice AI Summary":
+        st.divider()
+        st.header("🎙️ Voice AI Summary")
+        st.write("Click the button below to have the AI generate a short summary of your dataset and read it out loud.")
+        
+        if st.button("🔊 Generate & Play Voice Summary"):
+            with st.spinner("AI is analyzing the data and generating voice..."):
+                # 1. Ask OpenRouter to create a VERY SHORT summary (shorter = better for audio)
+                voice_question = "Provide a very brief, 3-sentence spoken summary of this dataset's key statistics and purpose. Keep it conversational."
+                text_answer = ai_helper.ask_ai(voice_question, summary)
+                
+                st.subheader("AI Text Summary:")
+                st.markdown(text_answer)
+                
+                # 2. Convert the OpenRouter text to Speech using gTTS
+                try:
+                    st.info("Generating audio file...")
+                    # Create audio bytes in memory
+                    audio_bytes = io.BytesIO()
+                    tts = gTTS(text=text_answer, lang='en', slow=False)
+                    tts.write_to_fp(audio_bytes)
+                    audio_bytes.seek(0)
+                    
+                    # 3. Play the audio in Streamlit
+                    st.success("Audio ready! Play it below:")
+                    st.audio(audio_bytes, format='audio/mp3')
+                except Exception as e:
+                    st.error(f"Voice Error: {e}. The AI response might have been too long or contained characters that can't be read.")
 
     # ==========================
     # AUTO INSIGHTS
