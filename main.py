@@ -3,9 +3,8 @@ import pandas as pd
 import analysis
 import visualization
 import ai_helper
-
 # ==========================
-# PAGE SETTINGS
+# PAGE SETTING
 # ==========================
 st.set_page_config(page_title="AI Data Analysis Assistant", page_icon="🤖", layout="wide")
 st.title("🤖 AI Data Analysis Assistant Pro")
