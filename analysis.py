@@ -41,6 +41,7 @@ def get_category_counts(df, col):
 
 def clean_data(df):
     """Cleans the dataset by removing duplicates and null values."""
+    df = df.copy() # Add this line to prevent Streamlit caching warnings!
     df.drop_duplicates(inplace=True)
     df.dropna(inplace=True)
     return df
