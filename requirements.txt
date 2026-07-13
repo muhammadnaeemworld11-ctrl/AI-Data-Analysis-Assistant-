@@ -5,6 +5,7 @@ matplotlib==3.8.4
 seaborn==0.13.2
 plotly==5.22.0
 python-dotenv==1.0.1
-openai==1.30.5
+openai>=1.55.0
 pillow==10.3.0
 gTTS==2.5.1
+httpx<0.28.0
