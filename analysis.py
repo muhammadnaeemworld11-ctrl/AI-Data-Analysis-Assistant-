@@ -2,18 +2,14 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 
+# Reads the CSV file with fallback encodings
 @st.cache_data
 def load_data(uploaded_file):
     """Reads the CSV file with fallback encodings. Cached for speed."""
     try:
-        return pd.read_csv(uploaded_file, encoding="utf-8")
-    except (UnicodeDecodeError, TypeError):
-        try:
-            return pd.read_csv(uploaded_file, encoding="cp1252")
-        except Exception:
-            # Added a proper fallback for any other encoding issues
-            return pd.read_csv(uploaded_file, encoding="latin1")
-
+        return pd.read_csv(uploaded_file, encoding='utf-8')
+    except UnicodeDecodeError:
+        return pd.read_csv(uploaded_file, encoding='latin1')
 
 def get_summary(df, filename):
     """Generates a text summary of the dataset for the AI."""
