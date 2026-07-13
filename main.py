@@ -1,10 +1,13 @@
+# ==========================
+# IMPORTING LIBRARIES
+# ==========================
 import streamlit as st
 import pandas as pd
-
-# LAZY IMPORTS
+from PIL import Image
 import analysis
 import visualization
 import ai_helper
+import voice_helper
 
 # ==========================
 # PAGE SETTINGS
@@ -12,153 +15,189 @@ import ai_helper
 st.set_page_config(page_title="AI Data Analysis Assistant", page_icon="🤖", layout="wide")
 st.title("🤖 AI Data Analysis Assistant Pro")
 st.write("Upload CSV files, analyze data, create interactive charts and ask AI questions.")
-st.divider()
+
+try:
+    img = Image.open("Sylari.png")
+    rotated_img = img.rotate(25, expand=True)
+    st.image(rotated_img, width=200)
+except FileNotFoundError:
+    pass
 
 # ==========================
 # SIDEBAR
 # ==========================
 st.sidebar.title("Navigation")
-option = st.sidebar.radio("Select", ["Home", "Dataset Summary", "Statistics", "Visualization", "Ask AI"])
+option = st.sidebar.radio("Select One", ["Home", "AUTO GENERATE KEY INSIGHTS", "Ask AI", "Dataset Summary", "Statistics", "Visualization"])
 uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 
 # ==========================
 # HOME
 # ==========================
 if option == "Home":
-    st.subheader("Welcome")
-    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ AI Smart Natural Language Filtering\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
+    st.divider()
+    st.subheader("Welcome to AI Data Analysis Assistant Pro! 🎉")
+    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ AI Data Assistant with Voice\n\n✅ Data Summary with Voice\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations")
+    st.divider()
+
+    # 🔊 Welcome Voice Message
+    if st.button("🔊 Listen to Welcome Message"):
+        welcome_text = "Welcome to AI Data Analysis Assistant Pro. Upload a CSV file to get started with automated insights, interactive visualizations, and AI-powered answers."
+        with st.spinner("Generating voice..."):
+            audio_bytes = voice_helper.text_to_speech(welcome_text)
+        st.audio(audio_bytes, format="audio/mp3")
 
 # ==========================
-# LOAD & CLEAN DATA
+# MAIN APP LOGIC (IF FILE UPLOADED)
 # ==========================
 if uploaded_file is not None:
-    df = analysis.load_data(uploaded_file)
+    df = analysis.load_data(uploaded_file).copy()
     df = analysis.clean_data(df)
 
-    # ==========================
-    # SIDEBAR AI SMART FILTER
-    # ==========================
-    st.sidebar.divider()
-    st.sidebar.subheader("🤖 AI Smart Filter")
-    
-    if "filter_query" not in st.session_state:
-        st.session_state.filter_query = None
-
-    ai_filter_input = st.sidebar.text_input(
-        "Filter data in plain English:", 
-        placeholder="e.g., Movies after 2000 with rating > 8.5"
-    )
-    
-    if st.sidebar.button("Apply AI Filter"):
-        if ai_filter_input.strip():
-            with st.sidebar.spinner("AI is writing filter code..."):
-                query_string = ai_helper.get_ai_filter(ai_filter_input, list(df.columns))
-                
-            if query_string:
-                st.session_state.filter_query = query_string
-                st.sidebar.success(f"AI Generated Code: `{query_string}`")
-            else:
-                st.sidebar.warning("AI couldn't understand that filter. Showing all data.")
-                st.session_state.filter_query = None
-        else:
-            st.sidebar.info("Type a filter request above.")
-
-    if st.sidebar.button("Reset Filter (Show All)"):
-        st.session_state.filter_query = None
-        st.sidebar.info("Filter cleared.")
-
+    summary = analysis.get_summary(df, uploaded_file.name)
     filtered_df = df.copy()
-    if st.session_state.filter_query:
-        try:
-            filtered_df = df.query(st.session_state.filter_query)
-        except Exception as e:
-            st.sidebar.error(f"AI filter failed: {e}. Showing all data.")
-            filtered_df = df.copy()
 
-    summary = analysis.get_summary(filtered_df, uploaded_file.name)
+    if 'Released_Year' in filtered_df.columns:
+        years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce').dropna()
+        if not years.empty:
+            min_yr, max_yr = int(years.min()), int(years.max())
+            yr_range = st.sidebar.slider("Filter by Release Year", min_yr, max_yr, (min_yr, max_yr))
 
-    # ==========================
-    # SMART DOWNLOAD BUTTON
-    # ==========================
-    if df.shape[0] == filtered_df.shape[0]:
-        st.sidebar.download_button(
-            label="📥 Download Full CSV",
-            data=filtered_df.to_csv(index=False),
-            file_name="full_dataset.csv",
-            mime="text/csv"
-        )
-    else:
-        st.sidebar.download_button(
-            label=f"📥 Download AI-Filtered CSV ({filtered_df.shape[0]} rows)",
-            data=filtered_df.to_csv(index=False),
-            file_name="ai_filtered_dataset.csv",
-            mime="text/csv"
-        )
+            numeric_years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce')
+            year_mask = (numeric_years >= yr_range[0]) & (numeric_years <= yr_range[1])
+            filtered_df = filtered_df[year_mask]
+
+    filtered_summary = analysis.get_summary(filtered_df, uploaded_file.name)
 
     # ==========================
-    # HOME - AUTO INSIGHTS
+    # AUTO INSIGHTS
     # ==========================
-    if option == "Home":
+    if option == "AUTO GENERATE KEY INSIGHTS":
         st.divider()
-        if filtered_df.empty:
-            st.warning("The current filter returned 0 rows. Cannot generate insights.")
-        elif st.button("✨ Auto-Generate Key Insights from Data"):
-            with st.spinner("AI is scanning your dataset for hidden trends..."):
+        if st.button("✨ Auto-Generate Key Insights from Data"):
+            with st.spinner("AI is scanning your dataset for Generating Key Insights..."):
                 insight_question = "Analyze this dataset and give me exactly 3 key business insights or trends that a data analyst would find interesting. Keep each insight to 1-2 sentences."
                 insights = ai_helper.ask_ai(insight_question, summary)
-            
+                st.divider()
             st.subheader("🔑 Key Insights")
             st.markdown(insights)
-            
+
+            # 🔊 Speak the insights
             st.divider()
-            if st.button("📄 Export Insights to PDF"):
-                pdf_file = analysis.export_to_pdf(insights)
-                if pdf_file:
-                    with open(pdf_file, "rb") as f:
-                        st.download_button(label="Download PDF Report", data=f, file_name="AI_Analysis_Report.pdf", mime="application/pdf")
+            if st.button("🔊 Listen to Insights"):
+                with st.spinner("Generating voice..."):
+                    audio_bytes = voice_helper.text_to_speech(insights)
+                st.audio(audio_bytes, format="audio/mp3")
 
     # ==========================
-    # SUMMARY
+    # ASK AI
     # ==========================
-    if option == "Dataset Summary":
+    elif option == "Ask AI":
+        st.header("🤖 Ask AI")
+        question = st.text_input("✨Ask about your dataset")
+        if st.button("Get Answer"):
+            if question.strip() == "":
+                st.warning("Enter a question")
+            else:
+                with st.spinner("AI analyzing..."):
+                    answer = ai_helper.ask_ai(question, summary)
+                st.markdown(answer)
+
+                # 🔊 Speak the answer
+                if st.button("🔊 Listen to Answer"):
+                    with st.spinner("Generating voice..."):
+                        audio_bytes = voice_helper.text_to_speech(answer)
+                    st.audio(audio_bytes, format="audio/mp3")
+
+    # ==========================
+    # SUMMARY (with Voice Feature)
+    # ==========================
+    elif option == "Dataset Summary":
+        st.divider()
         st.header("📊 Dataset Summary")
         c1, c2, c3 = st.columns(3)
         c1.metric("Rows", filtered_df.shape[0])
         c2.metric("Columns", filtered_df.shape[1])
         c3.metric("Missing Values", int(filtered_df.isnull().sum().sum()))
+
+        # 🔊 Voice Summary Button
+        st.divider()
+        if st.button("🔊 Listen to Dataset Summary"):
+            # Build a spoken-friendly summary text
+            voice_text = (
+                f"This dataset contains {filtered_df.shape[0]} rows "
+                f"and {filtered_df.shape[1]} columns. "
+                f"There are {int(filtered_df.isnull().sum().sum())} missing values. "
+                f"The columns in this dataset are: {', '.join(filtered_df.columns)}. "
+            )
+
+            # Add numeric stats summary if available
+            numeric_cols = filtered_df.select_dtypes(include='number').columns
+            if len(numeric_cols) > 0:
+                voice_text += "Here are some key statistics. "
+                for col in numeric_cols[:5]:
+                    mean_val = filtered_df[col].mean()
+                    voice_text += f"The average {col} is {mean_val:.2f}. "
+
+            with st.spinner("Generating voice..."):
+                audio_bytes = voice_helper.text_to_speech(voice_text)
+            st.audio(audio_bytes, format="audio/mp3")
+
         st.divider()
         st.subheader("Preview")
         st.dataframe(filtered_df.head(10), use_container_width=True)
+        st.divider()
         st.subheader("Column Names")
         st.write(list(filtered_df.columns))
+        st.divider()
         st.subheader("Data Types")
-        st.dataframe(pd.DataFrame(filtered_df.dtypes, columns=['Data Type']))
+        st.dataframe(filtered_df.dtypes.astype(str))
+        st.divider()
         st.subheader("Missing Values")
-        st.dataframe(pd.DataFrame(filtered_df.isnull().sum(), columns=['Missing Values']))
+        st.dataframe(filtered_df.isnull().sum())
 
     # ==========================
     # STATISTICS
     # ==========================
-    if option == "Statistics":
+    elif option == "Statistics":
         st.header("📈 Statistics")
         stats = analysis.get_numeric_stats(filtered_df)
         if stats is not None:
             st.dataframe(stats)
+
+            # 🔊 Speak statistics
+            if st.button("🔊 Listen to Statistics"):
+                voice_text = "Here are the key statistics for numeric columns. "
+                for col in stats.columns:
+                    voice_text += f"For {col}, "
+                    voice_text += f"the mean is {stats.loc['mean', col]:.2f}, "
+                    voice_text += f"the minimum is {stats.loc['min', col]:.2f}, "
+                    voice_text += f"and the maximum is {stats.loc['max', col]:.2f}. "
+                with st.spinner("Generating voice..."):
+                    audio_bytes = voice_helper.text_to_speech(voice_text)
+                st.audio(audio_bytes, format="audio/mp3")
         else:
             st.warning("No numeric columns")
+
         st.divider()
         categorical = filtered_df.select_dtypes(include="object")
         if len(categorical.columns):
             col = st.selectbox("Select Category", categorical.columns)
-            st.write(analysis.get_category_counts(filtered_df, col))
+            counts_df = analysis.get_category_counts(filtered_df, col)
+            st.dataframe(
+                counts_df,
+                column_config={
+                    "count": st.column_config.Column(alignment="center"),
+                    col: st.column_config.Column(alignment="center")
+                },
+                use_container_width=True
+            )
 
     # ==========================
     # VISUALIZATION
     # ==========================
-    if option == "Visualization":
+    elif option == "Visualization":
         st.header("📊 Interactive Visualization")
-        st.info("💡 Hover over the charts for details! Click the 📷 camera icon on the chart to download as PNG.")
-        
+
         chart_type = st.selectbox("Choose Chart", ["Bar Chart", "Histogram", "Pie Chart", "Scatter Plot"])
         fig = None
 
@@ -189,34 +228,7 @@ if uploaded_file is not None:
 
         if fig is not None:
             st.plotly_chart(fig, use_container_width=True)
-        elif filtered_df.empty:
-            st.warning("No data available to plot based on the current filter.")
-
-        st.divider()
-        if st.button("🤖 Explain this Chart with AI"):
-            if fig is not None:
-                with st.spinner("AI is analyzing the chart..."):
-                    chart_question = f"Briefly explain the {chart_type} for the column(s) selected. Provide a simple insight."
-                    explanation = ai_helper.ask_ai(chart_question, summary)
-                st.success("AI Explanation:")
-                st.write(explanation)
-            else:
-                st.warning("Please generate a chart first.")
-
-    # ==========================
-    # ASK AI
-    # ==========================
-    if option == "Ask AI":
-        st.header("🤖 Ask AI")
-        question = st.text_input("Ask about your dataset")
-        if st.button("Get Answer"):
-            if question.strip() == "":
-                st.warning("Enter a question")
-            else:
-                with st.spinner("AI analyzing..."):
-                    answer = ai_helper.ask_ai(question, summary)
-                st.success("AI Response")
-                st.write(answer)
 
 else:
-    st.info("Upload a CSV file from sidebar.")
+    if option != "Home":
+        st.warning("Please upload a CSV file from the sidebar to use this feature.")
