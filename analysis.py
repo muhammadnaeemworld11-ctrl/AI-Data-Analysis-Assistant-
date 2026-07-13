@@ -28,8 +28,8 @@ Statistics: {stats}
 
 def get_numeric_stats(df):
     """Returns statistics for numeric columns."""
-    numeric = df.select_dtypes(include=[np.number]) # Fixed format to list
-    if not numeric.empty: # More robust check than len(columns)
+    numeric = df.select_dtypes(include=[np.number]) 
+    if not numeric.empty: 
         return numeric.describe()
     return None
 
@@ -41,7 +41,8 @@ def get_category_counts(df, col):
 
 def clean_data(df):
     """Cleans the dataset by removing duplicates and null values."""
-    df = df.copy() # Add this line to prevent Streamlit caching warnings!
+    # FIX: Add .copy() to prevent Streamlit caching warnings
+    df = df.copy() 
     df.drop_duplicates(inplace=True)
     df.dropna(inplace=True)
     return df
