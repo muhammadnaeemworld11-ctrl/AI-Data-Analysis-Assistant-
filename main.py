@@ -17,7 +17,7 @@ st.title("🤖 AI Data Analysis Assistant Pro")
 st.write("Upload CSV files, analyze data, create interactive charts and ask AI questions.")
 
 try:
-    img = Image.open("Sylani.png") 
+    img = Image.open("Sylani.png")
     rotated_img = img.rotate(25, expand=True)
     st.image(rotated_img, width=200)
 except FileNotFoundError:
@@ -28,19 +28,7 @@ except FileNotFoundError:
 # ==========================
 st.sidebar.title("Navigation")
 option = st.sidebar.radio("Select One", ["Home", "AUTO GENERATE KEY INSIGHTS", "Ask AI", "Dataset Summary", "Statistics", "Visualization"])
-uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"]) 
-
-# AI Filter Input (from your recent updates)
-if "filter_query" not in st.session_state:
-    st.session_state.filter_query = None
-
-ai_filter_input = st.sidebar.text_input(
-    "Filter data in plain English:",
-    placeholder="e.g., Movies after 2000 with rating > 8.5"
-)
-
-if st.sidebar.button("Apply AI Filter"):
-    st.session_state.filter_query = ai_filter_input
+uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 
 # ==========================
 # SESSION STATE (persistence across reruns)
@@ -58,20 +46,12 @@ if option == "Home":
     st.subheader("Welcome to AI Data Analysis Assistant Pro! 🎉")
     st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ AI Data Assistant with Voice\n\n✅ Data Summary with Voice\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations")
     st.divider()
-    
-    # New Section from your code updates
-    st.subheader("Empowering Through Technology 🦯")
-    ai_image_url = "https://image.pollinations.ai/prompt/A%20high-quality%20digital%20art%20of%20a%20blind%20person%20using%20AI"
-    
-    try:
-        # FIX 1: Added quotes around "Blind_people.jpg" 
-        # FIX 2: Removed 'use_container_width' (replaced with width=400 to be safe in Streamlit 1.35)
-        st.image("Blind_people.jpg", caption="AI For Blind people using AI technology", width=400)
-    except FileNotFoundError:
-        # Fallback to URL if local image is not found in the GitHub repo
-        st.image(ai_image_url, caption="AI Generated Illustration: Blind person using AI", width=400)
-        
-    st.divider()
+
+    # If you still want to use the Blind_people.jpg image, use this safe block:
+    # try:
+    #     st.image("Blind_people.jpg", caption="AI For Blind people using AI technology", width=400)
+    # except FileNotFoundError:
+    #     pass
 
     if st.button("🔊 Listen to Welcome Message"):
         welcome_text = "Welcome to AI Data Analysis Assistant Pro. Upload a CSV file to get started with automated insights, interactive visualizations, and AI-powered answers."
@@ -82,30 +62,24 @@ if option == "Home":
 # ==========================
 # MAIN APP LOGIC (IF FILE UPLOADED)
 # ==========================
-if uploaded_file is not None: 
-    df = analysis.load_data(uploaded_file).copy() 
-    df = analysis.clean_data(df) 
-    
-    summary = analysis.get_summary(df, uploaded_file.name) 
-    filtered_df = df.copy() 
-    
-    # AI Filter Logic Placeholder (applies the text filter if provided)
-    if st.session_state.filter_query:
-        # Note: You may need to implement an AI parsing function in analysis.py 
-        # to convert the plain English text to a pandas query.
-        # For now, we just display it so the app doesn't crash.
-        st.sidebar.info(f"AI Filter active: '{st.session_state.filter_query}'")
-    
-    if 'Released_Year' in filtered_df.columns: 
-        years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce').dropna() 
-        if not years.empty: 
-            min_yr, max_yr = int(years.min()), int(years.max()) 
-            yr_range = st.sidebar.slider("Filter by Release Year", min_yr, max_yr, (min_yr, max_yr)) 
-            
-            numeric_years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce')
+if uploaded_file is not None:
+    df = analysis.load_data(uploaded_file).copy()
+    df = analysis.clean_data(df)
+
+    summary = analysis.get_summary(df, uploaded_file.name)
+    filtered_df = df.copy()
+
+    if "Released_Year" in filtered_df.columns:
+        years = pd.to_numeric(filtered_df["Released_Year"], errors="coerce").dropna()
+        if not years.empty:
+            min_yr, max_yr = int(years.min()), int(years.max())
+            yr_range = st.sidebar.slider("Filter by Release Year", min_yr, max_yr, (min_yr, max_yr))
+
+            numeric_years = pd.to_numeric(filtered_df["Released_Year"], errors="coerce")
             year_mask = (numeric_years >= yr_range[0]) & (numeric_years <= yr_range[1])
-            filtered_df = filtered_df[year_mask] 
-            
+            filtered_df = filtered_df[year_mask]
+
+    # Use filtered summary so AI reflects the active filter
     filtered_summary = analysis.get_summary(filtered_df, uploaded_file.name)
 
     # ==========================
@@ -119,10 +93,9 @@ if uploaded_file is not None:
                 st.session_state.insights = ai_helper.ask_ai(insight_question, filtered_summary)
 
         if st.session_state.insights:
-            st.divider()            
+            st.divider()
             st.subheader("🔑 Key Insights")
             st.markdown(st.session_state.insights)
-
             st.divider()
             if st.button("🔊 Listen to Insights"):
                 with st.spinner("Generating voice..."):
@@ -144,7 +117,6 @@ if uploaded_file is not None:
 
         if st.session_state.ai_answer:
             st.markdown(st.session_state.ai_answer)
-
             st.divider()
             if st.button("🔊 Listen to Answer"):
                 with st.spinner("Generating voice..."):
@@ -161,7 +133,7 @@ if uploaded_file is not None:
         c1.metric("Rows", filtered_df.shape[0])
         c2.metric("Columns", filtered_df.shape[1])
         c3.metric("Missing Values", int(filtered_df.isnull().sum().sum()))
-        
+
         st.divider()
         if st.button("🔊 Listen to Dataset Summary"):
             voice_text = (
@@ -170,7 +142,7 @@ if uploaded_file is not None:
                 f"There are {int(filtered_df.isnull().sum().sum())} missing values. "
                 f"The columns in this dataset are: {', '.join(filtered_df.columns)}. "
             )
-            numeric_cols = filtered_df.select_dtypes(include='number').columns
+            numeric_cols = filtered_df.select_dtypes(include="number").columns
             if len(numeric_cols) > 0:
                 voice_text += "Here are some key statistics. "
                 for col in numeric_cols[:5]:
@@ -195,7 +167,7 @@ if uploaded_file is not None:
         st.dataframe(filtered_df.isnull().sum())
 
     # ==========================
-    # STATISTICS 
+    # STATISTICS
     # ==========================
     elif option == "Statistics":
         st.header("📈 Statistics")
@@ -206,6 +178,7 @@ if uploaded_file is not None:
             if st.button("🔊 Listen to Statistics"):
                 voice_text = "Here are the key statistics for numeric columns. "
                 for col in stats.columns:
+                    # Safe index access
                     if all(idx in stats.index for idx in ["mean", "min", "max"]):
                         voice_text += f"For {col}, "
                         voice_text += f"the mean is {stats.loc['mean', col]:.2f}, "
@@ -216,24 +189,25 @@ if uploaded_file is not None:
                 st.audio(audio_bytes, format="audio/mp3")
         else:
             st.warning("No numeric columns")
-            
-        st.divider()        
+
+        st.divider()
         categorical = filtered_df.select_dtypes(include="object")
         if len(categorical.columns) > 0:
             col = st.selectbox("Select Category", categorical.columns)
             counts_df = analysis.get_category_counts(filtered_df, col)
-            
+
+            # Convert Series to DataFrame for better display
             counts_df = counts_df.reset_index()
             counts_df.columns = [col, "Count"]
-            
+
             st.dataframe(counts_df, use_container_width=True)
 
     # ==========================
-    # VISUALIZATION 
+    # VISUALIZATION
     # ==========================
     elif option == "Visualization":
         st.header("📊 Interactive Visualization")
-        
+
         chart_type = st.selectbox("Choose Chart", ["Bar Chart", "Histogram", "Pie Chart", "Scatter Plot"])
         fig = None
 
