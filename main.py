@@ -27,7 +27,7 @@ if option == "Home" and uploaded_file is None:
 # LOAD & CLEAN DATA
 # ==========================
 if uploaded_file is not None:
-    # Jab file upload ho, tab modules import karein
+    # Import modules dynamically on upload
     import analysis
     import visualization
     import ai_helper
@@ -75,6 +75,7 @@ if uploaded_file is not None:
             st.sidebar.error(f"AI filter failed: {e}. Showing all data.")
             filtered_df = df.copy()
 
+    # Generate summary with Arrow protection
     summary = analysis.get_summary(filtered_df, uploaded_file.name)
 
     # ==========================
@@ -82,7 +83,7 @@ if uploaded_file is not None:
     # ==========================
     if option == "Home":
         st.subheader("Welcome")
-        st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ AI Smart Natural Language Filtering\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
+        st.markdown("### Features\n\n### Features\n\n✅ Upload CSV Dataset\n\n✅ AI Smart Natural Language Filtering\n\n✅ Auto-Generated AI Insights\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations\n\n✅ AI Data Assistant\n\n✅ Export to PDF")
         st.divider()
         if filtered_df.empty:
             st.warning("The current filter returned 0 rows. Cannot generate insights.")
@@ -115,7 +116,7 @@ if uploaded_file is not None:
         st.subheader("Column Names")
         st.write(list(filtered_df.columns))
         
-        # SOLUTION: Explicitly cast types to string format (.astype(str)) to prevent Arrow crash
+        # Explicitly cast types to string format (.astype(str)) to prevent Arrow crash
         st.subheader("Data Types")
         dtypes_df = pd.DataFrame(filtered_df.dtypes, columns=['Data Type']).astype(str)
         st.dataframe(dtypes_df)
