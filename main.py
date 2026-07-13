@@ -17,7 +17,7 @@ st.title("🤖 AI Data Analysis Assistant Pro")
 st.write("Upload CSV files, analyze data, create interactive charts and ask AI questions.")
 
 try:
-    img = Image.open("Sylari.png")
+    img = Image.open("Sylani.png") 
     rotated_img = img.rotate(25, expand=True)
     st.image(rotated_img, width=200)
 except FileNotFoundError:
@@ -28,7 +28,7 @@ except FileNotFoundError:
 # ==========================
 st.sidebar.title("Navigation")
 option = st.sidebar.radio("Select One", ["Home", "AUTO GENERATE KEY INSIGHTS", "Ask AI", "Dataset Summary", "Statistics", "Visualization"])
-uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
+uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"]) 
 
 # ==========================
 # HOME
@@ -38,7 +38,7 @@ if option == "Home":
     st.subheader("Welcome to AI Data Analysis Assistant Pro! 🎉")
     st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ AI Data Assistant with Voice\n\n✅ Data Summary with Voice\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations")
     st.divider()
-
+    
     # 🔊 Welcome Voice Message
     if st.button("🔊 Listen to Welcome Message"):
         welcome_text = "Welcome to AI Data Analysis Assistant Pro. Upload a CSV file to get started with automated insights, interactive visualizations, and AI-powered answers."
@@ -49,23 +49,23 @@ if option == "Home":
 # ==========================
 # MAIN APP LOGIC (IF FILE UPLOADED)
 # ==========================
-if uploaded_file is not None:
-    df = analysis.load_data(uploaded_file).copy()
-    df = analysis.clean_data(df)
-
-    summary = analysis.get_summary(df, uploaded_file.name)
-    filtered_df = df.copy()
-
-    if 'Released_Year' in filtered_df.columns:
-        years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce').dropna()
-        if not years.empty:
-            min_yr, max_yr = int(years.min()), int(years.max())
-            yr_range = st.sidebar.slider("Filter by Release Year", min_yr, max_yr, (min_yr, max_yr))
-
+if uploaded_file is not None: 
+    df = analysis.load_data(uploaded_file).copy() 
+    df = analysis.clean_data(df) 
+    
+    summary = analysis.get_summary(df, uploaded_file.name) 
+    filtered_df = df.copy() 
+    
+    if 'Released_Year' in filtered_df.columns: 
+        years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce').dropna() 
+        if not years.empty: 
+            min_yr, max_yr = int(years.min()), int(years.max()) 
+            yr_range = st.sidebar.slider("Filter by Release Year", min_yr, max_yr, (min_yr, max_yr)) 
+            
             numeric_years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce')
             year_mask = (numeric_years >= yr_range[0]) & (numeric_years <= yr_range[1])
-            filtered_df = filtered_df[year_mask]
-
+            filtered_df = filtered_df[year_mask] 
+            
     filtered_summary = analysis.get_summary(filtered_df, uploaded_file.name)
 
     # ==========================
@@ -77,7 +77,7 @@ if uploaded_file is not None:
             with st.spinner("AI is scanning your dataset for Generating Key Insights..."):
                 insight_question = "Analyze this dataset and give me exactly 3 key business insights or trends that a data analyst would find interesting. Keep each insight to 1-2 sentences."
                 insights = ai_helper.ask_ai(insight_question, summary)
-                st.divider()
+                st.divider()            
             st.subheader("🔑 Key Insights")
             st.markdown(insights)
 
@@ -103,13 +103,14 @@ if uploaded_file is not None:
                 st.markdown(answer)
 
                 # 🔊 Speak the answer
+                st.divider()
                 if st.button("🔊 Listen to Answer"):
                     with st.spinner("Generating voice..."):
                         audio_bytes = voice_helper.text_to_speech(answer)
                     st.audio(audio_bytes, format="audio/mp3")
 
     # ==========================
-    # SUMMARY (with Voice Feature)
+    # SUMMARY
     # ==========================
     elif option == "Dataset Summary":
         st.divider()
@@ -118,19 +119,16 @@ if uploaded_file is not None:
         c1.metric("Rows", filtered_df.shape[0])
         c2.metric("Columns", filtered_df.shape[1])
         c3.metric("Missing Values", int(filtered_df.isnull().sum().sum()))
-
+        
         # 🔊 Voice Summary Button
         st.divider()
         if st.button("🔊 Listen to Dataset Summary"):
-            # Build a spoken-friendly summary text
             voice_text = (
                 f"This dataset contains {filtered_df.shape[0]} rows "
                 f"and {filtered_df.shape[1]} columns. "
                 f"There are {int(filtered_df.isnull().sum().sum())} missing values. "
                 f"The columns in this dataset are: {', '.join(filtered_df.columns)}. "
             )
-
-            # Add numeric stats summary if available
             numeric_cols = filtered_df.select_dtypes(include='number').columns
             if len(numeric_cols) > 0:
                 voice_text += "Here are some key statistics. "
@@ -156,7 +154,7 @@ if uploaded_file is not None:
         st.dataframe(filtered_df.isnull().sum())
 
     # ==========================
-    # STATISTICS
+    # STATISTICS 
     # ==========================
     elif option == "Statistics":
         st.header("📈 Statistics")
@@ -177,27 +175,25 @@ if uploaded_file is not None:
                 st.audio(audio_bytes, format="audio/mp3")
         else:
             st.warning("No numeric columns")
-
-        st.divider()
+            
+        st.divider()        
         categorical = filtered_df.select_dtypes(include="object")
         if len(categorical.columns):
             col = st.selectbox("Select Category", categorical.columns)
             counts_df = analysis.get_category_counts(filtered_df, col)
-            st.dataframe(
-                counts_df,
-                column_config={
-                    "count": st.column_config.Column(alignment="center"),
-                    col: st.column_config.Column(alignment="center")
-                },
-                use_container_width=True
-            )
+            
+            # Convert Series to DataFrame for better display
+            counts_df = counts_df.reset_index()
+            counts_df.columns = [col, "Count"]
+            
+            st.dataframe(counts_df, use_container_width=True)
 
     # ==========================
-    # VISUALIZATION
+    # VISUALIZATION 
     # ==========================
     elif option == "Visualization":
         st.header("📊 Interactive Visualization")
-
+        
         chart_type = st.selectbox("Choose Chart", ["Bar Chart", "Histogram", "Pie Chart", "Scatter Plot"])
         fig = None
 
