@@ -12,6 +12,7 @@ from gtts import gTTS
 import analysis
 import visualization
 import ai_helper
+from premium_theme import inject_premium_css, apply_chart_theme
 
 # ==========================
 # PAGE SETTINGS
@@ -19,6 +20,7 @@ import ai_helper
 st.set_page_config(page_title="AI Data Analysis Assistant", page_icon="🤖", layout="wide")
 st.title("🤖 AI Data Analysis Assistant Pro")
 st.write("Upload CSV files, analyze data, create interactive charts and ask AI questions.")
+inject_premium_css()
 
 try:
     img = Image.open("Sylani.png") 
