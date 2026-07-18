@@ -9,7 +9,6 @@ import os
 import tempfile
 import speech_recognition as sr
 from gtts import gTTS
-from audio_recorder_streamlit import audio_recorder
 import analysis
 import visualization
 import ai_helper
@@ -48,18 +47,15 @@ if option == "Home":
 # ==========================
 if uploaded_file is not None: 
     try:
-        # FIX: Read file as bytes to avoid Streamlit caching/AttributeError issues
         bytes_data = uploaded_file.read()
         df = analysis.load_data(bytes_data)
         
-        # Safety check in case the CSV was empty or corrupted
         if df is None:
             st.warning("Could not read the CSV file. Please upload a valid file.")
             st.stop()
             
         df = analysis.clean_data(df) 
         
-        # Unfiltered data summary
         summary = analysis.get_summary(df, uploaded_file.name) 
         filtered_df = df.copy() 
         
@@ -73,7 +69,6 @@ if uploaded_file is not None:
                 year_mask = (numeric_years >= yr_range[0]) & (numeric_years <= yr_range[1])
                 filtered_df = filtered_df[year_mask] 
                 
-        # Filtered data summary
         filtered_summary = analysis.get_summary(filtered_df, uploaded_file.name)
         
     except Exception as e:
@@ -88,7 +83,6 @@ if uploaded_file is not None:
         if st.button("✨ Auto-Generate Key Insights from Data"):
             with st.spinner("AI is scanning your dataset for Generating Key Insights..."):
                 insight_question = "Analyze this dataset and give me exactly 3 key business insights or trends that a data analyst would find interesting. Keep each insight to 1-2 sentences."
-                # FIX: Pass filtered_summary so AI analyzes current view
                 insights = ai_helper.ask_ai(insight_question, filtered_summary)
                 st.divider()            
             st.subheader("🔑 Key Insights")
@@ -109,16 +103,15 @@ if uploaded_file is not None:
     elif option == "Ask AI":
         st.header("🤖 Ask AI")
         
-        # --- SPEECH-TO-TEXT FEATURE ---
-        st.write("🎙️ Record your question or type below:")
-        audio_bytes = audio_recorder(icon="🎤", key="ask_ai_recorder")
+        # --- NATIVE SPEECH-TO-TEXT FEATURE ---
+        audio_file = st.audio_input("🎤 Record your question")
         
-        transcribed_text = ""
-        if audio_bytes:
+        if audio_file:
             with st.spinner("Transcribing voice..."):
-                # Save audio to a temporary file for SpeechRecognition
+                # Read the native WAV bytes from Streamlit's audio input
+                bytes_data = audio_file.read()
                 temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-                temp_audio.write(audio_bytes)
+                temp_audio.write(bytes_data)
                 temp_audio.close()
                 
                 recognizer = sr.Recognizer()
@@ -144,7 +137,6 @@ if uploaded_file is not None:
                 st.warning("Enter a question or record your voice")
             else:
                 with st.spinner("AI analyzing..."):
-                    # FIX: Pass filtered_summary so AI answers based on filtered data
                     answer = ai_helper.ask_ai(question, filtered_summary)
                 st.markdown(answer)
                 
@@ -197,7 +189,6 @@ if uploaded_file is not None:
             col = st.selectbox("Select Category", categorical.columns)
             counts_df = analysis.get_category_counts(filtered_df, col)
             
-            # FIX: Added check and corrected column_config mapping
             if counts_df is not None:
                 st.dataframe(
                     counts_df,
