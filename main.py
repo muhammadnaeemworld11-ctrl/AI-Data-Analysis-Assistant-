@@ -80,19 +80,26 @@ if uploaded_file is not None:
     # ==========================
     if option == "AUTO GENERATE KEY INSIGHTS":
         st.divider()
+        
+        # FIX: Initialize session state for insights
+        if 'insights' not in st.session_state:
+            st.session_state.insights = None
+
         if st.button("✨ Auto-Generate Key Insights from Data"):
             with st.spinner("AI is scanning your dataset for Generating Key Insights..."):
                 insight_question = "Analyze this dataset and give me exactly 3 key business insights or trends that a data analyst would find interesting. Keep each insight to 1-2 sentences."
-                insights = ai_helper.ask_ai(insight_question, filtered_summary)
-                st.divider()            
+                st.session_state.insights = ai_helper.ask_ai(insight_question, filtered_summary)
+        
+        # FIX: Move display and Read Aloud OUTSIDE the generate button block
+        if st.session_state.insights:
+            st.divider()            
             st.subheader("🔑 Key Insights")
-            st.markdown(insights)
+            st.markdown(st.session_state.insights)
             
-            # --- TEXT-TO-SPEECH FEATURE ---
-            if insights and not insights.startswith("⚠️") and not insights.startswith("API Key missing"):
+            if not st.session_state.insights.startswith("⚠️") and not st.session_state.insights.startswith("API Key missing"):
                 if st.button("🔊 Read Insights Aloud", key="read_insights"):
                     with st.spinner("Generating audio..."):
-                        tts = gTTS(text=insights, lang='en', slow=False)
+                        tts = gTTS(text=st.session_state.insights, lang='en', slow=False)
                         mp3_fp = io.BytesIO()
                         tts.write_to_fp(mp3_fp)
                         st.audio(mp3_fp.getvalue(), format="audio/mp3")
@@ -103,12 +110,15 @@ if uploaded_file is not None:
     elif option == "Ask AI":
         st.header("🤖 Ask AI")
         
+        # FIX: Initialize session state for answer
+        if 'answer' not in st.session_state:
+            st.session_state.answer = None
+            
         # --- NATIVE SPEECH-TO-TEXT FEATURE ---
         audio_file = st.audio_input("🎤 Record your question")
         
         if audio_file:
             with st.spinner("Transcribing voice..."):
-                # Read the native WAV bytes from Streamlit's audio input
                 bytes_data = audio_file.read()
                 temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
                 temp_audio.write(bytes_data)
@@ -120,16 +130,15 @@ if uploaded_file is not None:
                         audio_data = recognizer.record(source)
                         transcribed_text = recognizer.recognize_google(audio_data)
                         st.success(f"Transcribed: {transcribed_text}")
-                        # Update the text input box with the transcribed text
                         st.session_state.question_text = transcribed_text
+                        st.rerun() # Rerun to update the text box instantly
                 except sr.UnknownValueError:
                     st.error("Could not understand audio. Please try again.")
                 except sr.RequestError:
                     st.error("Speech recognition service error. Check internet connection.")
                 finally:
-                    os.unlink(temp_audio.name) # Clean up temp file
+                    os.unlink(temp_audio.name)
 
-        # Text input inherits from voice if recorded, else takes manual typing
         question = st.text_input("✨Ask about your dataset", key="question_text")
         
         if st.button("Get Answer"):
@@ -137,17 +146,19 @@ if uploaded_file is not None:
                 st.warning("Enter a question or record your voice")
             else:
                 with st.spinner("AI analyzing..."):
-                    answer = ai_helper.ask_ai(question, filtered_summary)
-                st.markdown(answer)
-                
-                # --- TEXT-TO-SPEECH FEATURE ---
-                if answer and not answer.startswith("⚠️") and not answer.startswith("API Key missing"):
-                    if st.button("🔊 Read Answer Aloud", key="read_answer"):
-                        with st.spinner("Generating audio..."):
-                            tts = gTTS(text=answer, lang='en', slow=False)
-                            mp3_fp = io.BytesIO()
-                            tts.write_to_fp(mp3_fp)
-                            st.audio(mp3_fp.getvalue(), format="audio/mp3")
+                    st.session_state.answer = ai_helper.ask_ai(question, filtered_summary)
+        
+        # FIX: Move display and Read Aloud OUTSIDE the get answer button block
+        if st.session_state.answer:
+            st.markdown(st.session_state.answer)
+            
+            if not st.session_state.answer.startswith("⚠️") and not st.session_state.answer.startswith("API Key missing"):
+                if st.button("🔊 Read Answer Aloud", key="read_answer"):
+                    with st.spinner("Generating audio..."):
+                        tts = gTTS(text=st.session_state.answer, lang='en', slow=False)
+                        mp3_fp = io.BytesIO()
+                        tts.write_to_fp(mp3_fp)
+                        st.audio(mp3_fp.getvalue(), format="audio/mp3")
 
     # ==========================
     # SUMMARY
