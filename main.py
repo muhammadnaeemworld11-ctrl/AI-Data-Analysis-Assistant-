@@ -11,7 +11,7 @@ import ai_helper
 # ==========================
 # PAGE SETTINGS
 # ==========================
-st.set_page_config(page_title="AI Data Analysis Assistant", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="AI Data Analysis Assistant", page_icon="✨", layout="wide")
 st.title("🤖 AI Data Analysis Assistant Pro")
 st.write("Upload CSV files, analyze data, create interactive charts and ask AI questions.")
 
@@ -41,7 +41,6 @@ if option == "Home":
 # MAIN APP LOGIC (IF FILE UPLOADED)
 # ==========================
 if uploaded_file is not None: 
-    # FIX: Added .copy() to prevent Streamlit cache modification errors
     df = analysis.load_data(uploaded_file).copy() 
     df = analysis.clean_data(df) 
     
@@ -70,7 +69,8 @@ if uploaded_file is not None:
         if st.button("✨ Auto-Generate Key Insights from Data"):
             with st.spinner("AI is scanning your dataset for Generating Key Insights..."):
                 insight_question = "Analyze this dataset and give me exactly 3 key business insights or trends that a data analyst would find interesting. Keep each insight to 1-2 sentences."
-                insights = ai_helper.ask_ai(insight_question, summary)
+                # FIX: Pass filtered_summary so AI analyzes current view
+                insights = ai_helper.ask_ai(insight_question, filtered_summary)
                 st.divider()            
             st.subheader("🔑 Key Insights")
             st.markdown(insights)
@@ -86,7 +86,8 @@ if uploaded_file is not None:
                 st.warning("Enter a question")
             else:
                 with st.spinner("AI analyzing..."):
-                    answer = ai_helper.ask_ai(question, summary)
+                    # FIX: Pass filtered_summary so AI answers based on filtered data
+                    answer = ai_helper.ask_ai(question, filtered_summary)
                 st.markdown(answer)
 
     # ==========================
@@ -128,14 +129,17 @@ if uploaded_file is not None:
         if len(categorical.columns):
             col = st.selectbox("Select Category", categorical.columns)
             counts_df = analysis.get_category_counts(filtered_df, col)
-            st.dataframe(
-                counts_df,
-                column_config={
-                    "count": st.column_config.Column(alignment="center"),
-                    col: st.column_config.Column(alignment="center")
-                },
-                use_container_width=True  
-            )
+            
+            # FIX: Added check and corrected column_config mapping
+            if counts_df is not None:
+                st.dataframe(
+                    counts_df,
+                    column_config={
+                        "Count": st.column_config.Column(alignment="center"),
+                        col: st.column_config.Column(alignment="center")
+                    },
+                    use_container_width=True  
+                )
 
     # ==========================
     # VISUALIZATION 
