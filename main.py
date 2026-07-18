@@ -4,6 +4,12 @@
 import streamlit as st
 import pandas as pd
 from PIL import Image
+import io
+import os
+import tempfile
+import speech_recognition as sr
+from gtts import gTTS
+from audio_recorder_streamlit import audio_recorder
 import analysis
 import visualization
 import ai_helper
@@ -11,7 +17,7 @@ import ai_helper
 # ==========================
 # PAGE SETTINGS
 # ==========================
-st.set_page_config(page_title="AI Data Analysis Assistant", page_icon="✨", layout="wide")
+st.set_page_config(page_title="AI Data Analysis Assistant", page_icon="🤖", layout="wide")
 st.title("🤖 AI Data Analysis Assistant Pro")
 st.write("Upload CSV files, analyze data, create interactive charts and ask AI questions.")
 
@@ -35,31 +41,44 @@ uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 if option == "Home":
     st.divider()
     st.subheader("Welcome to AI Data Analysis Assistant Pro! 🎉")
-    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ AI Data Assistant\n\n✅ Data Summary\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations")
+    st.markdown("### Features\n\n✅ Upload CSV Dataset\n\n✅ Auto-Generated AI Insights\n\n✅ AI Data Assistant with Voice\n\n✅ Voice Read-Aloud\n\n✅ Data Summary\n\n✅ Statistical Analysis\n\n✅ Interactive Plotly Visualizations")
 
 # ==========================
 # MAIN APP LOGIC (IF FILE UPLOADED)
 # ==========================
 if uploaded_file is not None: 
-    df = analysis.load_data(uploaded_file).copy() 
-    df = analysis.clean_data(df) 
-    
-    # Unfiltered data summary
-    summary = analysis.get_summary(df, uploaded_file.name) 
-    filtered_df = df.copy() 
-    
-    if 'Released_Year' in filtered_df.columns: 
-        years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce').dropna() 
-        if not years.empty: 
-            min_yr, max_yr = int(years.min()), int(years.max()) 
-            yr_range = st.sidebar.slider("Filter by Release Year", min_yr, max_yr, (min_yr, max_yr)) 
+    try:
+        # FIX: Read file as bytes to avoid Streamlit caching/AttributeError issues
+        bytes_data = uploaded_file.read()
+        df = analysis.load_data(bytes_data)
+        
+        # Safety check in case the CSV was empty or corrupted
+        if df is None:
+            st.warning("Could not read the CSV file. Please upload a valid file.")
+            st.stop()
             
-            numeric_years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce')
-            year_mask = (numeric_years >= yr_range[0]) & (numeric_years <= yr_range[1])
-            filtered_df = filtered_df[year_mask] 
-            
-    # Filtered data summary
-    filtered_summary = analysis.get_summary(filtered_df, uploaded_file.name)
+        df = analysis.clean_data(df) 
+        
+        # Unfiltered data summary
+        summary = analysis.get_summary(df, uploaded_file.name) 
+        filtered_df = df.copy() 
+        
+        if 'Released_Year' in filtered_df.columns: 
+            years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce').dropna() 
+            if not years.empty: 
+                min_yr, max_yr = int(years.min()), int(years.max()) 
+                yr_range = st.sidebar.slider("Filter by Release Year", min_yr, max_yr, (min_yr, max_yr)) 
+                
+                numeric_years = pd.to_numeric(filtered_df['Released_Year'], errors='coerce')
+                year_mask = (numeric_years >= yr_range[0]) & (numeric_years <= yr_range[1])
+                filtered_df = filtered_df[year_mask] 
+                
+        # Filtered data summary
+        filtered_summary = analysis.get_summary(filtered_df, uploaded_file.name)
+        
+    except Exception as e:
+        st.error(f"An error occurred while processing the file: {e}")
+        st.stop()
 
     # ==========================
     # AUTO INSIGHTS
@@ -74,21 +93,69 @@ if uploaded_file is not None:
                 st.divider()            
             st.subheader("🔑 Key Insights")
             st.markdown(insights)
+            
+            # --- TEXT-TO-SPEECH FEATURE ---
+            if insights and not insights.startswith("⚠️") and not insights.startswith("API Key missing"):
+                if st.button("🔊 Read Insights Aloud", key="read_insights"):
+                    with st.spinner("Generating audio..."):
+                        tts = gTTS(text=insights, lang='en', slow=False)
+                        mp3_fp = io.BytesIO()
+                        tts.write_to_fp(mp3_fp)
+                        st.audio(mp3_fp.getvalue(), format="audio/mp3")
 
     # ==========================
     # ASK AI
     # ==========================
     elif option == "Ask AI":
         st.header("🤖 Ask AI")
-        question = st.text_input("✨Ask about your dataset")
+        
+        # --- SPEECH-TO-TEXT FEATURE ---
+        st.write("🎙️ Record your question or type below:")
+        audio_bytes = audio_recorder(icon="🎤", key="ask_ai_recorder")
+        
+        transcribed_text = ""
+        if audio_bytes:
+            with st.spinner("Transcribing voice..."):
+                # Save audio to a temporary file for SpeechRecognition
+                temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+                temp_audio.write(audio_bytes)
+                temp_audio.close()
+                
+                recognizer = sr.Recognizer()
+                try:
+                    with sr.AudioFile(temp_audio.name) as source:
+                        audio_data = recognizer.record(source)
+                        transcribed_text = recognizer.recognize_google(audio_data)
+                        st.success(f"Transcribed: {transcribed_text}")
+                        # Update the text input box with the transcribed text
+                        st.session_state.question_text = transcribed_text
+                except sr.UnknownValueError:
+                    st.error("Could not understand audio. Please try again.")
+                except sr.RequestError:
+                    st.error("Speech recognition service error. Check internet connection.")
+                finally:
+                    os.unlink(temp_audio.name) # Clean up temp file
+
+        # Text input inherits from voice if recorded, else takes manual typing
+        question = st.text_input("✨Ask about your dataset", key="question_text")
+        
         if st.button("Get Answer"):
             if question.strip() == "":
-                st.warning("Enter a question")
+                st.warning("Enter a question or record your voice")
             else:
                 with st.spinner("AI analyzing..."):
                     # FIX: Pass filtered_summary so AI answers based on filtered data
                     answer = ai_helper.ask_ai(question, filtered_summary)
                 st.markdown(answer)
+                
+                # --- TEXT-TO-SPEECH FEATURE ---
+                if answer and not answer.startswith("⚠️") and not answer.startswith("API Key missing"):
+                    if st.button("🔊 Read Answer Aloud", key="read_answer"):
+                        with st.spinner("Generating audio..."):
+                            tts = gTTS(text=answer, lang='en', slow=False)
+                            mp3_fp = io.BytesIO()
+                            tts.write_to_fp(mp3_fp)
+                            st.audio(mp3_fp.getvalue(), format="audio/mp3")
 
     # ==========================
     # SUMMARY
