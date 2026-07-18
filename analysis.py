@@ -2,18 +2,15 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 
-# Reads the CSV file with fallback encodings
 @st.cache_data
 def load_data(uploaded_file):
-    """Reads the CSV file with fallback encodings. Cached for speed."""
     try:
         return pd.read_csv(uploaded_file, encoding='utf-8')
     except UnicodeDecodeError:
+        uploaded_file.seek(0)
         return pd.read_csv(uploaded_file, encoding='latin1')
 
 def get_summary(df, filename):
-    """Generates a text summary of the dataset for the AI."""
-    # Using include='all' ensures it works even if there are no numeric columns
     stats = df.describe(include='all').to_string()
     
     return f"""
@@ -27,21 +24,19 @@ Statistics: {stats}
 """
 
 def get_numeric_stats(df):
-    """Returns statistics for numeric columns."""
     numeric = df.select_dtypes(include=[np.number]) 
     if not numeric.empty: 
         return numeric.describe()
     return None
 
 def get_category_counts(df, col):
-    """Returns value counts for a categorical column."""
     if col in df.columns:
-        return df[col].value_counts()
+        counts = df[col].value_counts().reset_index()
+        counts.columns = [col, 'Count']
+        return counts
     return None
 
 def clean_data(df):
-    """Cleans the dataset by removing duplicates and null values."""
-    # FIX: Add .copy() to prevent Streamlit caching warnings
     df = df.copy() 
     df.drop_duplicates(inplace=True)
     df.dropna(inplace=True)
